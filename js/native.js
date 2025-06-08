@@ -56,11 +56,26 @@ Java.perform(function () {
         },
         "8.0.50"() {
             Java.use('com.tencent.mm.plugin.appbrand.jsapi.i0').k.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
-                let JSONObject = Java.use('org.json.JSONObject');
-                let jsonObject = JSONObject.$new(y);
-                let jsonString = jsonObject.toString();
-                sendResponseToPython(jsonString)
-                return this.k(x, y)
+                let res  =this.k(x, y)
+                sendResponseToPython(res)
+                if(res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')){
+                    res = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
+                    console.log("降级云函数")
+                }
+                return res
+            }
+
+        },
+        // 2025/06/09 支持8058微信
+        "8.0.58"() {
+            Java.use("com.tencent.mm.plugin.appbrand.jsapi.j0").k.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
+                let res  =this.k(x, y)
+                sendResponseToPython(res)
+                if(res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')){
+                    res = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
+                    console.log("降级云函数")
+                }
+                return res
             }
 
         },
@@ -82,9 +97,8 @@ Java.perform(function () {
 
     let AppBrandCommonBindingJni = Java.use("com.tencent.mm.appbrand.commonjni.AppBrandCommonBindingJni");
     // 是否打开解码
-    AppBrandCommonBindingJni["nativeInvokeHandler"].implementation = function (jsapi_name, data, str3, asyncRequestCounter, z15) {
-        sendRequestToPython(jsapi_name, data)
-        return this["nativeInvokeHandler"](jsapi_name, data, str3, asyncRequestCounter, z15);
+    AppBrandCommonBindingJni["nativeInvokeHandler"].implementation = function () {
+        sendRequestToPython(arguments[0], arguments[1])
+        return this["nativeInvokeHandler"](...arguments);
     };
-
 })
