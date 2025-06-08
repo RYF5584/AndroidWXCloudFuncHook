@@ -30,9 +30,9 @@ class JsSendRequest(BaseModel):
         type_ = values.get('type')
         data = values.get('data')
         if type_ == JsSendType.Request:
-            values['data'] = Request.parse_obj(data)
+            values['data'] = Request.model_validate(data)
         elif type_ == JsSendType.Response:
-            values['data'] = Response.parse_obj(data)
+            values['data'] = Response.model_validate(data)
         elif type_ == JsSendType.Other:
             values['data'] = data
         return values
