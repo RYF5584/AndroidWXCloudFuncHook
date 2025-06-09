@@ -34,9 +34,9 @@ Java.perform(function () {
     const ReqCaptue = {
         "8.0.48"() {
             Java.use('com.tencent.mm.plugin.appbrand.jsapi.i0').o.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
-                let res  =this.o(x, y)
+                let res = this.o(x, y)
                 sendResponseToPython(res)
-                if(res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')){
+                if (res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')) {
                     res = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
                     console.log("降级云函数")
                 }
@@ -45,9 +45,9 @@ Java.perform(function () {
         },
         "8.0.49"() {
             Java.use('com.tencent.mm.plugin.appbrand.jsapi.i0').o.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
-                let res  =this.o(x, y)
+                let res = this.o(x, y)
                 sendResponseToPython(res)
-                if(res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')){
+                if (res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')) {
                     res = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
                     console.log("降级云函数")
                 }
@@ -56,9 +56,9 @@ Java.perform(function () {
         },
         "8.0.50"() {
             Java.use('com.tencent.mm.plugin.appbrand.jsapi.i0').k.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
-                let res  =this.k(x, y)
+                let res = this.k(x, y)
                 sendResponseToPython(res)
-                if(res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')){
+                if (res.includes('secretid') && res.includes('secretkey') && res.includes('real_object_prefix')) {
                     res = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
                     console.log("降级云函数")
                 }
@@ -69,11 +69,13 @@ Java.perform(function () {
         // 2025/06/09 支持8058微信
         "8.0.58"() {
             Java.use("com.tencent.mm.plugin.appbrand.jsapi.j0").k.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
-                let res  =this.k(x, y)
+                let res = this.k(x, y)
                 sendResponseToPython(res)
-                if(res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')){
-                    res = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
-                    console.log("降级云函数")
+                if (res.includes('secretid') && res.includes('secretkey') && res.includes('real_object_prefix')) {
+                    let newRes = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
+                    console.warn("降级云函数")
+                    console.warn("拿到原云网关Token响应体 ==> ", res)
+                    return newRes
                 }
                 return res
             }
