@@ -31,6 +31,20 @@ Java.perform(function () {
     }
 
 
+
+    function checkIsGetServerInfoResp(respStr) {
+        try {
+            let obj =  JSON.parse(JSON.parse(JSON.parse(respStr).data).data)
+            const mustKeys = ['secretid', 'secretkey', 'token', 'bucket'];
+            const mustKeys1 = ['token', 'iat', 'exp', 'kx', 'rid', 'iat'];
+            // console.log(Object.keys(obj))
+            return mustKeys.every(key => obj.hasOwnProperty(key)) || mustKeys1.every(key => obj.hasOwnProperty(key));
+        } catch (e) {
+            return false
+        }
+    }
+
+
     const ReqCaptue = {
         "8.0.48"() {
             Java.use('com.tencent.mm.plugin.appbrand.jsapi.i0').o.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
@@ -71,10 +85,10 @@ Java.perform(function () {
             Java.use("com.tencent.mm.plugin.appbrand.jsapi.j0").k.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) {
                 let res = this.k(x, y)
                 sendResponseToPython(res)
-                if (res.includes('secretid') && res.includes('secretkey') && res.includes('real_object_prefix')) {
+                let isServerInfoResp = checkIsGetServerInfoResp(res)
+                if (isServerInfoResp) {
                     let newRes = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
-                    console.warn("降级云函数")
-                    console.warn("拿到原云网关Token响应体 ==> ", res)
+                    console.warn("降级云函数,并拿到原云网关Token响应体 ==> ", JSON.parse(JSON.parse(res).data).data)
                     return newRes
                 }
                 return res
