@@ -94,8 +94,7 @@ def on_message(message: dict, *args, **kwargs):
 
 processes = device.enumerate_processes()
 target_processes = [
-    process for process in processes if
-    any(keyword in process.name for keyword in ['微信', 'tencent.mm'])
+    process for process in processes if process.name in ['微信','com.tencent.mm']
 ]
 for process in target_processes:
     try:
