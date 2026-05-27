@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "android-wx-cloud-func-hook"
+version = "1.0.0"
+description = "Frida-based hook toolkit for WeChat Android mini program cloud function traffic."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "frida-legacy-compat[full]==1.1.0",
+    "loguru>=0.7.3",
+]
+authors = [
+    { name = "Qian ruanke" },
+]
+license = "MIT"
+keywords = ["frida", "wechat", "android", "mini-program", "hook"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/RYF5584/AndroidWXCloudFuncHook"
+Repository = "https://github.com/RYF5584/AndroidWXCloudFuncHook"
+Issues = "https://github.com/RYF5584/AndroidWXCloudFuncHook/issues"
+PyPI = "https://pypi.org/project/android-wx-cloud-func-hook/"
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.2",
+    "twine>=5.1.1",
+]
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.package-data]
+android_wx_cloud_func_hook = ["js/*.js"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["android_wx_cloud_func_hook*"]

@@ -1,71 +1,205 @@
 # AndroidWXCloudFuncHook
 
-# 一. 更新记录
-## 2025/09/16
-## 最近忙一直没有看过这个网关App和小程序端目前都已经更新到V3云网关算法了
-## V3算法是纯二进制信息，App的旧版网关是明文信息，所以分析起来非常麻烦，抓包都很难
-## V3算法在App端是通过Rust编译的so进行数据加密，而且请求似乎都是通过so直接请求的，所以没办法直接抓到明文，必须通过Frida Hook等手段进行
-## 不过HookApp版本的云网关很简单，但是这个仅用于抓包，脱壳以后很容易就能找到定位点，把wxcloud的so拖到ida后发现请求所有都走了so层，而且可以100%确定是rust编译的so，全都是JUMP跳转，逆向难度很大，必须结合动态调试
-## App端还原算法必然很难，所以目前最好的解决办法是通过小程序端进行逆向，因为云网关开发基本是多端框架，所以只要搞定了一个都可以套过来
-## 小程序端的目前已经研究出了了，一晚上没睡，自己看了看，不是很难，基本就是一个wasm，加密逻辑都在wasm，我们不需要搞纯算wasm分析起来太麻烦
-## 所以只需要搞到wasm，然后补环境就可以了，刚刚测试了一下基本没什么毛病
-## 各位加油，后续有机会可能还是会出一个成套的工具
-## 在可见的未来，很多大厂的小程序估计都会对接云网关，所以这个方向还是很重要的，具体的思路已经给大家了，还原的算法没办法贴出来，感谢支持！
+[![Repository](https://img.shields.io/badge/Repository-GitHub-181717?logo=github)](https://github.com/RYF5584/AndroidWXCloudFuncHook)
+[![PyPI Version](https://img.shields.io/pypi/v/android-wx-cloud-func-hook)](https://pypi.org/project/android-wx-cloud-func-hook/)
 
+`android_wx_cloud_func_hook` 是一个面向微信 Android 小程序云请求分析的 Frida Hook 库，重点覆盖 `operateWXData`、`qbase_commapi`、`tcbapi_call_gateway` 等链路，并支持请求/响应回调改写。
 
-## 2025/06/09
-### 1. 2025/06/09 更新支持微信858版本
-### 2.更新云网关/云托管请求解码JSON易读格式
-### 4.打印日志更加通俗易懂
-### 5.这个代码有些地方写的很差,本来是打算临时用的,后面有机会会出一个抓包+调用+mmtls-protobuf抓包全链路抓包的,等闲了再说吧
+## 通过 [frida-legacy-compat](https://github.com/RYF5584/frida-legacy-compat) 实现 Frida 17 新版 API 兼容。
 
+## Star History
 
+[![Star History Chart](https://api.star-history.com/svg?repos=RYF5584/AndroidWXCloudFuncHook&type=Date)](https://star-history.com/#RYF5584/AndroidWXCloudFuncHook&Date)
 
-# 二. 微信云函数的介绍及目前的研究到的点
+## 一、微信云函数 / 云网关简介与当前研究结论
 
-其实微信云函数不是单独的云函数，他包含：云网关、云托管、云函数，在此统称为云函数。
+这里说的“微信云函数”并不只指单独的云函数能力，而是把以下几类能力统称为云函数体系：
 
-现在很多小程序的请求，不再是普通的HTTP请求，而是基于微信云网关/云函数/云托管进行请求，此类请求直接通过抓包软件，无法抓到，因为其实现原理主要是通过微信的Mmtls进行请求发包（当然这只是一种方式），根据研究，目前发现微信云请求有以下几种：
+- 云网关
+- 云托管
+- 云函数
 
-1. 基于微信Mmtls协议，调用微信的 ***<u>OperateWxData</u>*** 接口(可以在PC小程序逆向中看到该函数)是通过小程序进程和微信进程通讯，通过微信的mmtls协议进行实际的发包，走的相当于微信私有链路的请求。
-2. 基于HTTP2.0，此类又分为两种，一种是鉴权模式，及微信小程序中部分使用的模式，该模式的主要流程是以下几点：
-   1. 通过调用OperateWxData接口(此接口为Mmtls)的qbase_commit，中的  **<u>*tcbapi_get_service_info*</u>** 接口，获取到请求的加密参数以及鉴权的Token。
-   2. 通过拿到的key和token把请求体进行加密并压缩(目前来看压缩使用的算法是snappy)，数据的格式一般采用ProtoBuf或者JSON两种类型进行处理。
-   3. 拿到请求后，通过key进行解密，解密算法目前使用的是AES-CBC算法。
-3. 不鉴权的HTTP2.0，此类与上述类似，一般用于使用了微信云托管/云网关但不在小程序，而是自己单独网站的情况下使用，key和token通过微信链路获取，后续请求和<u>2</u>中类似进行加解密。
-4. 基于HTTP明文的请求，此类主要是微信云网关，一般用于其他App，此类请求，通过带Socks的抓包软件可以抓到(不带Socks的抓不到)，此类请求是通过微信云网关的算法(so层)，在请求的请求头中附带了x-wx-auth-code以及x-wx-call-id请求头，这两个参数通过URL以及Body计算出来，来进行数据合法性验证。
-5. 2025 年 8 月以后腾讯云网关SDK更新App的明文请求估计已经很难见到了，随之而来的就是V3 加密版的算法纯二进制
+很多小程序请求并不是普通 HTTP 请求，而是基于微信云网关 / 云函数 / 云托管完成。此类请求直接用常规抓包软件通常抓不到，因为底层往往通过微信自己的 `Mmtls` 链路发包。根据当前研究，常见云请求大致有以下几种：
 
-# 三. 这个项目用于干啥？
+1. 基于微信 `Mmtls` 协议，通过 `OperateWxData` 接口发包
+   - 在 PC 小程序逆向中也能看到该函数
+   - 该链路通过小程序进程与微信进程通信，最终走微信私有链路发包
+2. 基于 `HTTP/2` 的鉴权模式
+   - 常见于部分微信小程序
+   - 一般流程如下：
+     1. 通过 `OperateWxData` 的 `qbase_commit` 中的 `tcbapi_get_service_info` 获取加密参数与鉴权 Token
+     2. 使用获取到的 key 和 token 对请求体进行加密并压缩
+     3. 当前观察到压缩常见为 `snappy`，数据格式一般为 `ProtoBuf` 或 `JSON`
+     4. 服务端收到后再用 key 解密，当前常见解密算法为 `AES-CBC`
+3. 不鉴权的 `HTTP/2` 模式
+   - 通常见于使用了微信云托管 / 云网关，但不在小程序内、而是独立网站的场景
+   - key 和 token 仍通过微信链路获取，后续请求的编解码流程与上面的鉴权模式类似
+4. 基于 HTTP 明文的请求
+   - 常见于部分其他 App 的微信云网关接入
+   - 这类请求往往需要带 `Socks` 的抓包软件才能看到
+   - 请求头中通常会带上 `x-wx-auth-code` 和 `x-wx-call-id`
+   - 这两个值由 URL 和 Body 共同计算，用于合法性校验
+5. 2025 年 8 月以后，腾讯云网关 SDK 更新后，明文请求已经越来越少
+   - 趋势逐渐转向 V3 加密版纯二进制实现
+6. V3 算法通常通过 `tcbapi_get_service_info` 返回的 `key` / `kx` / `token` 完成请求编解码
+   - 具体实现当前暂不开源
 
-**AndroidWXCloudFuncHook** 主要是针对于上面介绍的第二种情况，第二种情况通过 *get_service_info* 接口拿到Key进行加解密，会导致抓包很麻烦(除非直接抓JS层)，同时要集成抓包+frida逆向到key进行同步作用，较为麻烦，所以在近期的研究中，发现当 *get_service_info* 接口触发某个异常的时候，会自动降级为第一种的Mmtls接口，如果降级成Mmtls那就可以很便捷的通过Frida找到对应的Hook点进行抓包。
+## 二、这个项目可以做什么
 
-目前抓包适配了安卓微信***848/849/850***，降级云函数只适配了***848/849***
+1. 提供可直接调用的 PyPI 库，对小程序 Native 层主要链路进行 Frida Hook，抓取大部分 API 的请求和响应
+2. 通过修改 `operateWXData` 接口，实现对云网关 V3 的降级，让其改走 `Mmtls` 层面的云网关，方便抓包
+3. 当 `operateWXData` 中的 `get_service_info` 触发特定异常时，可自动降级为第一种 `Mmtls` 模式，便于进一步定位和抓包
+4. 相关辅助逻辑可直接参考 [plugin.py](./src/android_wx_cloud_func_hook/plugin.py)
 
-```javascript
-Java.use('com.tencent.mm.plugin.appbrand.jsapi.i0').o.overload('java.lang.String', 'java.util.Map').implementation = function (x, y) { // 取自代码片段,frida脚本部分
-        let res  =this.o(x, y)
-        sendResponseToPython(res)
-        if(res.includes('{"data":"{\\"data\\":\\"{\\\\\\"token\\\\\\":\\\\\\"')){
-       		res = '{"data":"{\\"baseresponse\\":{\\"errcode\\":103006,\\"errmsg\\":\\"system error.\\"}}","err_no":0}'
-        	console.log("降级云函数")
-    	}
-    return res
-}
+## Features
+
+- 自动枚举并附加微信主进程和 `appbrand` 相关进程
+- 自动补挂新出现的 `com.tencent.mm:appbrandX` 进程
+- 提供 `RequestEvent` / `ResponseEvent` 事件模型
+- 支持在 Python 回调中重写请求体和响应体
+- 将 `js/native.js` 作为包资源一起分发
+- 内置 `example.run()`，安装后可直接导入运行示例
+
+## Installation
+
+从 PyPI 安装：
+
+```bash
+pip install android-wx-cloud-func-hook
 ```
 
-在这里我们可以看到，当遇到获取Token和Key的时候，就抛出**103006异常**(目前来看就是非法请求)，此时云函数会自动降级为OperateWxData，就可以很方便的进行抓包，当然你也可以先抓到这个key进行解密，这里不做讨论。
-当然你也可以通过此脚本自行实现RPC或者重写请求/响应
-## 四. 如何运行?
+如果你使用 `uv`：
 
-1. python > 3.8
-2. pip install -r (requirements.txt)
-3. Git下载Frida-server(具体教程可以自行搜索) [Releases · frida/frida](https://github.com/frida/frida/releases)
-4. 下载adb并添加到环境变量
-5. 运行脚本即可
+```bash
+uv add android-wx-cloud-func-hook
+```
 
-#### 另外，对于3/4类的请求，都能通过逆向JS或者So层拿到实际的加密参数，根据目前的算法，4类算法，基本就是一个很简单的HASH算法进行了验签，在So层通过IDA即可拿到。
+## Quick Start
 
-By WeChat: ***RSCompanyCEO***
+### 安装后可以直接运行包内示例：
 
-Telegram: ***ryf5584***
+```python
+from android_wx_cloud_func_hook import example
+
+example.run()
+```
+
+### example代码的原理如下
+```python
+def lower_gateway_and_match_v3_config(response: ResponseEvent) -> dict[str, Any] | None:
+    """提取网关 V3 配置并将响应体置空，以便触发 JS 侧降级。"""
+    request = response.request
+    if response.api != "operateWXData" or request is None or "tcbapi_get_service_info" not in request.body:
+        return None
+
+    try:
+        response_dict = json.loads(response.body)
+        response_data = json.loads(response_dict["data"])
+        cloud_v3_response_config = json.loads(response_data["data"])
+
+        request_dict = json.loads(request.body)
+        cloud_v3_request_config = json.loads(request_dict["data"]["data"]["qbase_req"])
+
+        logger.info(cloud_v3_response_config)
+        logger.info(cloud_v3_request_config)
+
+        full_config = {**cloud_v3_response_config, **cloud_v3_request_config}
+        response.body = ""
+        return full_config
+    except Exception:
+        return None
+
+
+def parse_gateway_http_request(request: RequestEvent | None) -> dict[str, Any] | None:
+    """解析 `tcbapi_call_gateway` 对应的 qbase 请求体。"""
+    if request is None or request.api != "operateWXData":
+        return None
+
+    try:
+        body_dict = json.loads(request.body)
+        qbase_api_name = body_dict["data"]["data"].get("qbase_api_name")
+        if qbase_api_name != "tcbapi_call_gateway":
+            return None
+        qbase_request = body_dict["data"]["data"]["qbase_req"]
+        return json.loads(qbase_request)
+    except Exception:
+        return None
+
+
+def parse_gateway_http_response(response: ResponseEvent) -> dict[str, dict[str, Any]] | None:
+    """解析网关 HTTP 请求和响应，便于调试打印。"""
+    parsed_request = parse_gateway_http_request(response.request)
+    if parsed_request is None:
+        return None
+
+    try:
+        response_dict = json.loads(response.body)
+        response_data = json.loads(response_dict["data"])
+        return {
+            "request": parsed_request,
+            "response": response_data,
+        }
+    except Exception:
+        return None
+
+```
+
+### 如果你想自定义回调，并重写请求和响应，可以直接使用核心类：
+
+```python
+from android_wx_cloud_func_hook import AndroidWXCloudFuncHook, RequestEvent, ResponseEvent
+
+
+def on_request(request: RequestEvent) -> None:
+    if "tcbapi_call_gateway" in request.body:
+        print("matched request", request.id)
+        request.body = "重写请求体"
+
+
+def on_response(response: ResponseEvent) -> None:
+    if response.request is not None:
+        print("matched response", response.id, response.request.api)
+        response.body = "重写响应体，可以实现重写降级后的网关 HTTP 响应以及 WxJS 中的其他 API 响应"
+
+
+with AndroidWXCloudFuncHook() as hook:
+    processes = hook.get_wechat_processes()
+    if not processes:
+        raise SystemExit("没有找到微信相关进程")
+
+    hook.start_hook(
+        processes,
+        on_request=on_request,
+        on_response=on_response,
+        auto_attach_new_processes=True,
+    )
+
+    input("Hook 已启动，按回车退出...")
+```
+
+## Package API
+
+### `AndroidWXCloudFuncHook`
+
+- 负责枚举进程、附加 Frida、自动补挂新进程、接收消息并回传补丁
+
+### `RequestEvent`
+
+- `id`: 请求唯一 ID
+- `api`: JSAPI 名称，可改写
+- `body`: 当前请求体，可改写
+- `meta_body`: 原始请求体快照，只读语义
+
+### `ResponseEvent`
+
+- `id`: 响应唯一 ID
+- `body`: 当前响应体，可改写
+- `meta_body`: 原始响应体快照，只读语义
+- `request`: 匹配到的请求对象，没有命中时为 `None`
+
+### `example.run()`
+
+- 包内自带的最小可运行示例
+- 适合快速验证设备、Frida 环境和微信小程序链路是否已命中
+
+
