@@ -5,6 +5,12 @@
 
 `android_wx_cloud_func_hook` 是一个面向微信 Android 小程序云请求分析的 Frida Hook 库，重点覆盖 `operateWXData`、`qbase_commapi`、`tcbapi_call_gateway` 等链路，并支持请求/响应回调改写。
 
+## Contact
+
+- Telegram: `ryf5584`
+- QQ: `1043695584`
+- WeChat: `RSCompanyCEO`
+
 ## 通过 [frida-legacy-compat](https://github.com/RYF5584/frida-legacy-compat) 实现 Frida 17 新版 API 兼容。
 
 ## Star History
@@ -201,5 +207,4 @@ with AndroidWXCloudFuncHook() as hook:
 
 - 包内自带的最小可运行示例
 - 适合快速验证设备、Frida 环境和微信小程序链路是否已命中
-
 
