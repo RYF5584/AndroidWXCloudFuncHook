@@ -1,5 +1,13 @@
 # AndroidWXCloudFuncHook
 
+> 🎯 **如果你正在研究小程序风控 / 采集方案**
+>
+> 🔗 可以查看我的另一个仓库：[weapp-risk-research](https://github.com/RYF5584/weapp-risk-research)
+>
+> 📚 该仓库已涵盖几乎所有小程序相关的采集 / 风控研究，方便你进行研究，以及推进小程序反爬、反欺诈业务升级
+>
+> 🚀 **后续将逐步更新**：基于 Frida 的安卓小程序 Devtools，以及新版网关 V3 全链路请求加密 / 请求抓包实现！
+
 [![Repository](https://img.shields.io/badge/Repository-GitHub-181717?logo=github)](https://github.com/RYF5584/AndroidWXCloudFuncHook)
 [![PyPI Version](https://img.shields.io/pypi/v/android-wx-cloud-func-hook)](https://pypi.org/project/android-wx-cloud-func-hook/)
 
